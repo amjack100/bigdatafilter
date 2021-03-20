@@ -1,5 +1,5 @@
 import multiprocessing as mp
-from tqdm import tqdm
+import tqdm
 import os
 from pathlib import Path
 import shutil
@@ -84,8 +84,16 @@ class Mapper:
         self.cache_name = cache_name
         self.quiet = False
         self.i = 0
-        self._t = tqdm(disable=True)
+        self.tqdm_kwargs = {"leave": False}
+        self._t = None
         self._timer = Timer()
+        self._setup_msg = ""
+
+    def _tqdm_write(self, msg: str) -> None:
+
+        self._t.write(msg)
+        if self.quiet and self._t is not None:
+            self._t.write(msg)
 
     def _setup(self):
         """
@@ -93,6 +101,9 @@ class Mapper:
         """
 
         self._timer.start()
+
+        if self._setup_msg != "":
+            self._tqdm_write(self._setup_msg)
 
         if self.working_dir is not None:
 
@@ -111,8 +122,8 @@ class Mapper:
 
         elapsed_time = self._timer.stop()
 
-        if not self.quiet:
-            print(f"\nElapsed time: {elapsed_time:0.2f} seconds")
+        if not self.quiet and self._t is not None:
+            self._t.write(f"Elapsed time: {elapsed_time:0.2f} seconds")
 
         if self.origin_path is not None:
             os.chdir(self.origin_path)
@@ -124,8 +135,10 @@ class Mapper:
         """
 
         self.i += 1
-        self._t.n = self.i
-        self._t.update()
+
+        if self._t is not None:
+            self._t.n = self.i
+            self._t.update()
 
     def _execute_concurrent(self):
         """
@@ -169,7 +182,9 @@ class IterMapper(Mapper):
 
         super().__init__(func, additional_args, concurrent, working_dir, cache_name)
         self.input_iter = input_iter
-        self._t = tqdm(total=len(self.input_iter))
+        self._t = tqdm.tqdm(total=len(self.input_iter), **self.tqdm_kwargs)
+
+        self._setup_msg = f"> {len(input_iter)} items -> {working_dir}"
 
     def _execute_concurrent(self):
 
@@ -211,12 +226,22 @@ class DirectoryMapper(Mapper):
 
         super().__init__(func, additional_args, concurrent, working_dir, cache_name)
 
-        self.contents = [os.path.abspath(file.path) for file in os.scandir(input_dir)]
-        self.t = tqdm(total=len(self.contents))
+        self.contents = []
+
+        ext = ""
+        for i, file in enumerate(os.scandir(input_dir)):
+            self.contents.append(os.path.abspath(file.path))
+            if i == 0:
+                ext = os.path.splitext(file.name)[1]
+            if ext != os.path.splitext(file.name)[1]:
+                ext = "varied"
+
+        self._t = tqdm.tqdm(total=len(self.contents), **self.tqdm_kwargs)
         self.input_dir = str(Path(input_dir).absolute())
         self.origin_path = None
-
         self.cache_file = os.path.join(self.input_dir, (cache_name + ".cache.json"))
+
+        self._setup_msg = f'> {len(self.contents)} files with extension "{ext}" from {input_dir} -> {working_dir}'
 
     def _execute_concurrent(self):
 

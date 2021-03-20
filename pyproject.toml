@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bigdatafilter"
-version = "0.1.2"
+version = "0.1.3"
 description = "Easily map functions to big datasets"
 authors = ["Andy Jackson <amjack100@gmail.com>"]
 license = "MIT"
