@@ -1,1 +1,1 @@
-from bigdatafilter.__main__ import Manager, map
+from bigdatafilter.__main__ import dirmap, map
