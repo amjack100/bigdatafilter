@@ -77,8 +77,13 @@ class Manager:
         """
 
         if self.output_dir is not None:
-            sys.path.append(os.getcwd())
-            os.makedirs(self.output_dir)
+
+            if os.path.exists(self.output_dir):
+                if len(os.listdir(self.output_dir)) > 0:
+                    raise FileExistsError(f"Output directory {self.output_dir} is not empty")
+            else:
+                os.makedirs(self.output_dir)
+                
             self.origin_path = os.getcwd()
             os.chdir(self.output_dir)
 
